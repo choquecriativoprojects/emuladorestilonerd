@@ -10,10 +10,10 @@
             --case-bg: #330052;
             --case-bg-deep: #26003f;
             --case-line: rgba(164, 55, 224, 0.45);
-            --control-bg: rgba(84, 50, 104, 0.62);
-            --control-bg-dark: rgba(35, 24, 48, 0.86);
-            --control-line: rgba(185, 134, 211, 0.28);
-            --control-glow: rgba(114, 0, 193, 0.78);
+            --control-bg: #585858;
+            --control-bg-dark: #303030;
+            --control-line: rgba(230, 230, 230, 0.18);
+            --control-glow: rgba(0, 0, 0, 0.35);
             --label: rgba(255, 255, 255, 0.78);
         }
 
@@ -261,16 +261,16 @@
         .shoulder {
             width: clamp(115px, 28vw, 155px);
             height: clamp(48px, 7svh, 62px);
-            border: 3px solid rgba(77, 0, 128, 0.88);
+            border: 3px solid #2b2b2b;
             border-radius: 20px;
-            background: linear-gradient(180deg, rgba(92, 51, 115, 0.74), rgba(47, 29, 63, 0.94));
-            color: var(--label);
+            background: linear-gradient(180deg, #6a6a6a 0%, #444 46%, #2d2d2d 100%);
+            color: rgba(255, 255, 255, 0.9);
             font-size: clamp(20px, 5vw, 28px);
             font-weight: 800;
             box-shadow:
-                0 0 0 4px rgba(51, 0, 87, 0.6),
-                inset 0 0 0 2px rgba(255, 255, 255, 0.08),
-                inset 0 -10px 18px rgba(0, 0, 0, 0.25);
+                0 0 0 4px rgba(0, 0, 0, 0.22),
+                inset 0 2px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -12px 18px rgba(0, 0, 0, 0.45);
         }
 
         .main-controls {
@@ -285,11 +285,11 @@
             aspect-ratio: 1;
             border-radius: 50%;
             padding: 13px;
-            background: radial-gradient(circle, rgba(61, 36, 78, 0.9) 0 36%, rgba(38, 20, 52, 0.96) 37% 100%);
+            background: radial-gradient(circle, #3f3f3f 0 36%, #2d2d2d 37% 100%);
             box-shadow:
-                0 0 0 5px rgba(99, 0, 169, 0.74),
-                inset 0 0 0 4px rgba(255, 255, 255, 0.16),
-                inset 0 0 32px rgba(0, 0, 0, 0.45);
+                0 0 0 5px rgba(0, 0, 0, 0.22),
+                inset 0 0 0 4px rgba(255, 255, 255, 0.12),
+                inset 0 0 32px rgba(0, 0, 0, 0.55);
             position: relative;
         }
 
@@ -297,7 +297,7 @@
             content: "";
             position: absolute;
             inset: 12px;
-            border: 3px solid rgba(255, 255, 255, 0.18);
+            border: 3px solid rgba(255, 255, 255, 0.16);
             border-radius: 50%;
         }
 
@@ -310,9 +310,9 @@
         .dpad-cross-h,
         .dpad-cross-v {
             position: absolute;
-            background: linear-gradient(180deg, rgba(76, 49, 92, 0.92), rgba(47, 28, 64, 0.96));
-            border: 2px solid rgba(255, 255, 255, 0.14);
-            box-shadow: inset 0 12px 16px rgba(255, 255, 255, 0.04), inset 0 -12px 18px rgba(0, 0, 0, 0.25);
+            background: linear-gradient(180deg, #5f5f5f 0%, #424242 45%, #2f2f2f 100%);
+            border: 2px solid rgba(0, 0, 0, 0.45);
+            box-shadow: inset 0 9px 12px rgba(255, 255, 255, 0.12), inset 0 -12px 18px rgba(0, 0, 0, 0.38);
         }
 
         .dpad-cross-h {
@@ -338,8 +338,8 @@
             left: 34%;
             top: 34%;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(93, 67, 108, 0.88), rgba(38, 26, 49, 0.96));
-            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(255, 255, 255, 0.08);
+            background: radial-gradient(circle, #666 0%, #3a3a3a 62%, #252525 100%);
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.72), 0 0 0 2px rgba(255, 255, 255, 0.09);
         }
 
         .dpad-hit {
@@ -379,18 +379,18 @@
             position: absolute;
             width: clamp(50px, min(13.5vw, 8.5svh), 68px);
             aspect-ratio: 1;
-            border: 4px solid rgba(77, 0, 128, 0.92);
+            border: 4px solid #2a2a2a;
             border-radius: 50%;
             background:
-                radial-gradient(circle at 50% 45%, rgba(88, 56, 106, 0.88), rgba(42, 29, 54, 0.96) 62%),
+                radial-gradient(circle at 50% 42%, #666 0%, #444 54%, #2b2b2b 100%),
                 var(--control-bg-dark);
-            color: var(--label);
+            color: rgba(255, 255, 255, 0.92);
             font-size: clamp(15px, 4.2vw, 20px);
             font-weight: 800;
             box-shadow:
-                0 0 0 3px rgba(51, 0, 87, 0.72),
-                inset 0 0 0 3px rgba(255, 255, 255, 0.1),
-                inset 0 -12px 18px rgba(0, 0, 0, 0.25);
+                0 0 0 3px rgba(0, 0, 0, 0.25),
+                inset 0 2px 0 rgba(255, 255, 255, 0.16),
+                inset 0 -12px 18px rgba(0, 0, 0, 0.42);
         }
 
         .face-action::before {
@@ -433,25 +433,25 @@
             width: 52px;
             height: 30px;
             border-radius: 999px;
-            border: 3px solid rgba(77, 0, 128, 0.92);
-            background: linear-gradient(180deg, rgba(87, 55, 106, 0.78), rgba(38, 26, 48, 0.94));
+            border: 3px solid #2a2a2a;
+            background: linear-gradient(180deg, #646464, #343434);
             box-shadow:
-                0 0 0 3px rgba(51, 0, 87, 0.65),
-                inset 0 0 0 2px rgba(255, 255, 255, 0.09);
+                0 0 0 3px rgba(0, 0, 0, 0.24),
+                inset 0 2px 0 rgba(255, 255, 255, 0.14);
         }
 
         .menu-button {
             width: 54px;
             height: 54px;
             border-radius: 50%;
-            border: 4px solid rgba(77, 0, 128, 0.92);
-            background: radial-gradient(circle, rgba(72, 48, 88, 0.86), rgba(37, 25, 49, 0.98));
+            border: 4px solid #2a2a2a;
+            background: radial-gradient(circle, #666 0%, #414141 58%, #262626 100%);
             color: rgba(255, 255, 255, 0.62);
             font-size: 22px;
             line-height: 1;
             box-shadow:
-                0 0 0 3px rgba(51, 0, 87, 0.65),
-                inset 0 0 0 3px rgba(255, 255, 255, 0.08);
+                0 0 0 3px rgba(0, 0, 0, 0.24),
+                inset 0 2px 0 rgba(255, 255, 255, 0.13);
         }
 
         .touch-button {
@@ -469,14 +469,6 @@
         .face-action.b.is-pressed,
         .dpad-hit.is-pressed {
             transform: scale(0.96);
-        }
-
-        .home-indicator {
-            width: min(154px, 45vw);
-            height: 5px;
-            margin: auto auto 0;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.58);
         }
 
         @media (max-height: 720px) {
@@ -554,7 +546,6 @@
             </div>
         </section>
 
-        <div class="home-indicator" aria-hidden="true"></div>
     </main>
 
     <script>
