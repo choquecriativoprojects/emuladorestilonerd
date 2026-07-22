@@ -719,10 +719,6 @@
                     shell.classList.remove('show-native-menu');
                 }
 
-                if (window.EJS_emulator && window.EJS_emulator.menu && window.EJS_emulator.menu.close) {
-                    window.EJS_emulator.menu.close(true);
-                }
-
                 if (menu) {
                     menu.style.setProperty('display', 'none', 'important');
                     menu.style.setProperty('opacity', '0', 'important');
@@ -760,8 +756,18 @@
             }
 
             function getMenuButtonText(button) {
+                if (!button.dataset.customOriginalText) {
+                    button.dataset.customOriginalText = [
+                        button.textContent,
+                        button.getAttribute('aria-label'),
+                        button.getAttribute('title'),
+                        button.getAttribute('data-btn'),
+                        button.className
+                    ].join(' ');
+                }
+
                 return normalizeMenuText([
-                    button.textContent,
+                    button.dataset.customOriginalText,
                     button.getAttribute('aria-label'),
                     button.getAttribute('title'),
                     button.getAttribute('data-btn'),
@@ -794,32 +800,41 @@
             function setMenuButtonLabel(button, label) {
                 var text = button.querySelector('.ejs_menu_text');
 
-                if (text) {
+                if (text && text.textContent !== label) {
                     text.textContent = label;
-                } else {
+                } else if (!text && button.textContent !== label) {
                     button.textContent = label;
                 }
 
-                button.setAttribute('aria-label', label);
+                if (button.getAttribute('aria-label') !== label) {
+                    button.setAttribute('aria-label', label);
+                }
             }
 
             function customizeMenuOptions() {
                 var menu = document.querySelector('#game .ejs_menu_bar');
                 if (!menu) return;
+                if (menu.dataset.customMenuBusy === 'true') return;
 
-                menu.querySelectorAll('.custom-menu-volume, .ejs_volume_parent, .ejs_menu_bar_spacer').forEach(function(item) {
-                    item.classList.add('custom-menu-hidden');
-                });
+                menu.dataset.customMenuBusy = 'true';
 
-                menu.querySelectorAll('.ejs_menu_button').forEach(function(button) {
-                    var label = getAllowedMenuLabel(button);
+                try {
+                    menu.querySelectorAll('.custom-menu-volume, .ejs_volume_parent, .ejs_menu_bar_spacer').forEach(function(item) {
+                        item.classList.add('custom-menu-hidden');
+                    });
 
-                    button.classList.toggle('custom-menu-hidden', !label);
+                    menu.querySelectorAll('.ejs_menu_button').forEach(function(button) {
+                        var label = getAllowedMenuLabel(button);
 
-                    if (label) {
-                        setMenuButtonLabel(button, label);
-                    }
-                });
+                        button.classList.toggle('custom-menu-hidden', !label);
+
+                        if (label) {
+                            setMenuButtonLabel(button, label);
+                        }
+                    });
+                } finally {
+                    menu.dataset.customMenuBusy = 'false';
+                }
             }
 
             function watchMenuOptions() {
@@ -834,8 +849,7 @@
 
                 observer.observe(menu, {
                     childList: true,
-                    subtree: true,
-                    characterData: true
+                    subtree: true
                 });
                 menu.dataset.customMenuObserved = 'true';
             }
@@ -992,14 +1006,6 @@
                 }
 
                 shell.classList.toggle('show-native-menu', shouldOpen);
-
-                if (window.EJS_emulator && window.EJS_emulator.menu) {
-                    if (shouldOpen && window.EJS_emulator.menu.open) {
-                        window.EJS_emulator.menu.open(true);
-                    } else if (!shouldOpen && window.EJS_emulator.menu.close) {
-                        window.EJS_emulator.menu.close(true);
-                    }
-                }
 
                 menu.style.setProperty('display', shouldOpen ? 'flex' : 'none', 'important');
                 menu.style.setProperty('opacity', shouldOpen ? '1' : '0', 'important');
