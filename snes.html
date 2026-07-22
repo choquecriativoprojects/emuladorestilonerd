@@ -20,6 +20,13 @@
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        *::selection {
+            background: transparent;
         }
 
         html,
@@ -32,6 +39,18 @@
             font-family: Arial, Helvetica, sans-serif;
             overscroll-behavior: none;
             touch-action: none;
+            user-select: none;
+        }
+
+        button,
+        img,
+        .controls,
+        .touch-button,
+        .dpad,
+        .dpad-image {
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            -webkit-user-select: none;
             user-select: none;
         }
 
@@ -164,6 +183,10 @@
             align-items: center !important;
             justify-content: flex-start !important;
             gap: 8px !important;
+        }
+
+        .emulator-shell.show-native-menu #game .custom-menu-hidden {
+            display: none !important;
         }
 
         .emulator-shell.show-native-menu #game .custom-menu-volume {
@@ -718,13 +741,103 @@
                 var button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'custom-menu-back';
-                button.textContent = 'Voltar ao jogo';
+                button.textContent = 'Retornar para o jogo (Jogar)';
                 button.addEventListener('click', function(event) {
                     event.preventDefault();
                     closeMenu();
                 });
 
                 menu.insertBefore(button, menu.firstChild);
+            }
+
+            function normalizeMenuText(value) {
+                return (value || '')
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            function getMenuButtonText(button) {
+                return normalizeMenuText([
+                    button.textContent,
+                    button.getAttribute('aria-label'),
+                    button.getAttribute('title'),
+                    button.getAttribute('data-btn'),
+                    button.className
+                ].join(' '));
+            }
+
+            function getAllowedMenuLabel(button) {
+                var text = getMenuButtonText(button);
+
+                if (text.indexOf('reset') !== -1 || text.indexOf('reiniciar') !== -1) {
+                    return 'Reset';
+                }
+
+                if (text.indexOf('pause') !== -1 || text.indexOf('pausar') !== -1 || text.indexOf('play') !== -1 || text.indexOf('resume') !== -1) {
+                    return 'Pausar';
+                }
+
+                if ((text.indexOf('load') !== -1 && text.indexOf('state') !== -1) || text.indexOf('loadstate') !== -1 || text.indexOf('carregar') !== -1) {
+                    return 'Carregar Save State';
+                }
+
+                if ((text.indexOf('save') !== -1 && text.indexOf('state') !== -1) || text.indexOf('savestate') !== -1 || text.indexOf('salvar') !== -1 || text.indexOf('armazenar') !== -1) {
+                    return 'Armazenar Save State';
+                }
+
+                return '';
+            }
+
+            function setMenuButtonLabel(button, label) {
+                var text = button.querySelector('.ejs_menu_text');
+
+                if (text) {
+                    text.textContent = label;
+                } else {
+                    button.textContent = label;
+                }
+
+                button.setAttribute('aria-label', label);
+            }
+
+            function customizeMenuOptions() {
+                var menu = document.querySelector('#game .ejs_menu_bar');
+                if (!menu) return;
+
+                menu.querySelectorAll('.custom-menu-volume, .ejs_volume_parent, .ejs_menu_bar_spacer').forEach(function(item) {
+                    item.classList.add('custom-menu-hidden');
+                });
+
+                menu.querySelectorAll('.ejs_menu_button').forEach(function(button) {
+                    var label = getAllowedMenuLabel(button);
+
+                    button.classList.toggle('custom-menu-hidden', !label);
+
+                    if (label) {
+                        setMenuButtonLabel(button, label);
+                    }
+                });
+            }
+
+            function watchMenuOptions() {
+                var menu = document.querySelector('#game .ejs_menu_bar');
+                if (!menu || menu.dataset.customMenuObserved) return;
+
+                var observer = new MutationObserver(function() {
+                    if (document.querySelector('.emulator-shell.show-native-menu')) {
+                        customizeMenuOptions();
+                    }
+                });
+
+                observer.observe(menu, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true
+                });
+                menu.dataset.customMenuObserved = 'true';
             }
 
             function ensureVolumeControl() {
@@ -875,8 +988,7 @@
 
                 if (shouldOpen) {
                     ensureBackButton();
-                    ensureVolumeControl();
-                    syncVolumeSlider();
+                    watchMenuOptions();
                 }
 
                 shell.classList.toggle('show-native-menu', shouldOpen);
@@ -892,7 +1004,24 @@
                 menu.style.setProperty('display', shouldOpen ? 'flex' : 'none', 'important');
                 menu.style.setProperty('opacity', shouldOpen ? '1' : '0', 'important');
                 menu.style.setProperty('pointer-events', shouldOpen ? 'auto' : 'none', 'important');
+
+                if (shouldOpen) {
+                    customizeMenuOptions();
+                    window.setTimeout(customizeMenuOptions, 120);
+                }
             }
+
+            document.addEventListener('selectstart', function(event) {
+                if (event.target && event.target.closest && event.target.closest('.emulator-shell')) {
+                    event.preventDefault();
+                }
+            });
+
+            document.addEventListener('dragstart', function(event) {
+                if (event.target && event.target.closest && event.target.closest('.emulator-shell')) {
+                    event.preventDefault();
+                }
+            });
 
             document.querySelectorAll('[data-input]').forEach(function(button) {
                 button.addEventListener('pointerdown', function(event) {
