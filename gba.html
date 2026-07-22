@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Emulador GBA</title>
+    <style>
+        :root {
+            --body-bg: #151418;
+            --case-bg: #330052;
+            --case-bg-deep: #26003f;
+            --case-line: rgba(164, 55, 224, 0.45);
+            --control-bg: #585858;
+            --control-bg-dark: #303030;
+            --control-line: rgba(230, 230, 230, 0.18);
+            --control-glow: rgba(0, 0, 0, 0.35);
+            --label: rgba(255, 255, 255, 0.78);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+            margin: 0;
+            background: var(--body-bg);
+            color: #fff;
+            font-family: Arial, Helvetica, sans-serif;
+            overscroll-behavior: none;
+            touch-action: none;
+            user-select: none;
+        }
+
+        body {
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100svh;
+            display: grid;
+            place-items: start center;
+        }
+
+        .emulator-shell {
+            width: min(100vw, 440px, calc(100svh * 9 / 16));
+            aspect-ratio: 9 / 16;
+            margin: 0 auto;
+            padding: clamp(10px, 2.4vw, 14px) clamp(12px, 3vw, 18px) max(16px, env(safe-area-inset-bottom));
+            background:
+                radial-gradient(circle at 26% 30%, rgba(98, 0, 155, 0.9), transparent 34%),
+                linear-gradient(180deg, var(--case-bg), var(--case-bg-deep));
+            border: 2px solid var(--case-line);
+            border-radius: 18px;
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.03), 0 18px 45px rgba(0, 0, 0, 0.45);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(14px, 3.4svh, 30px);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .emulator-shell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 40;
+            background: rgba(10, 0, 18, 0.58);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+        }
+
+        .emulator-shell.show-native-menu::before {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .screen-frame {
+            width: 100%;
+            padding: clamp(14px, 3.5vw, 26px) clamp(14px, 3.5vw, 26px) clamp(22px, 4.7vw, 30px);
+            background: #171719;
+            border-radius: 12px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 14px rgba(0, 0, 0, 0.44);
+            position: relative;
+        }
+
+        .screen-brand {
+            position: absolute;
+            left: clamp(18px, 4vw, 28px);
+            bottom: 5px;
+            color: rgba(255, 255, 255, 0.38);
+            font-size: clamp(13px, 3.2vw, 19px);
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        #game {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #game .ejs_parent,
+        #game .ejs_game,
+        #game .ejs_canvas_parent {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #game .ejs_canvas {
+            object-fit: contain !important;
+            object-position: center !important;
+        }
+
+        #game .ejs_virtualGamepad_parent,
+        #game .ejs_virtualGamepad_open,
+        #game .ejs_menu_bar {
+            display: none !important;
+        }
+
+        .emulator-shell.show-native-menu #game .ejs_menu_bar {
+            display: flex !important;
+            position: fixed !important;
+            left: 50% !important;
+            top: 50% !important;
+            right: auto !important;
+            bottom: auto !important;
+            width: min(348px, calc(100vw - 36px)) !important;
+            max-height: min(560px, calc(100svh - 80px)) !important;
+            padding: 14px !important;
+            border: 1px solid rgba(255, 255, 255, 0.16) !important;
+            border-radius: 18px !important;
+            background: rgba(14, 11, 18, 0.92) !important;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+            opacity: 1 !important;
+            transform: translate(-50%, -50%) !important;
+            pointer-events: auto !important;
+            z-index: 60 !important;
+            overflow-y: auto !important;
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+        }
+
+        .emulator-shell.show-native-menu #game .custom-menu-back {
+            order: -10 !important;
+            width: 100% !important;
+            min-height: 42px !important;
+            margin: 0 0 6px !important;
+            padding: 10px 12px !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
+            border-radius: 12px !important;
+            background: rgba(123, 31, 191, 0.42) !important;
+            color: #fff !important;
+            font: inherit !important;
+            font-size: 14px !important;
+            font-weight: 800 !important;
+            cursor: pointer !important;
+        }
+
+        .emulator-shell.show-native-menu #game .ejs_menu_button {
+            width: 100% !important;
+            min-height: 42px !important;
+            margin: 0 !important;
+            padding: 9px 10px !important;
+            border-radius: 10px !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            gap: 8px !important;
+        }
+
+        .emulator-shell.show-native-menu #game .custom-menu-volume {
+            order: -9 !important;
+            width: 100% !important;
+            max-width: none !important;
+            padding: 8px !important;
+            margin: 0 0 6px !important;
+            border-radius: 10px !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            display: flex !important;
+            flex: 0 0 auto !important;
+            align-items: center !important;
+            gap: 10px !important;
+        }
+
+        .emulator-shell.show-native-menu #game .custom-volume-icon {
+            width: 44px !important;
+            min-width: 44px !important;
+            min-height: 40px !important;
+            height: 40px !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            background: rgba(255, 255, 255, 0.06) !important;
+            border: 0 !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        .emulator-shell.show-native-menu #game .ejs_volume_parent {
+            display: none !important;
+        }
+
+        .emulator-shell.show-native-menu #game .custom-menu-volume input[type=range] {
+            width: 100% !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            position: relative !important;
+            z-index: 3 !important;
+            display: block !important;
+            accent-color: #8f21d7 !important;
+            touch-action: manipulation !important;
+        }
+
+        .emulator-shell.show-native-menu #game .ejs_menu_text {
+            color: #fff !important;
+            display: block !important;
+            flex: 1 !important;
+            opacity: 1 !important;
+            transform: none !important;
+            position: static !important;
+            white-space: normal !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 0 0 8px !important;
+            pointer-events: none !important;
+        }
+
+        .emulator-shell.show-native-menu #game .ejs_menu_text::before,
+        .emulator-shell.show-native-menu #game .ejs_menu_bar_spacer {
+            display: none !important;
+        }
+
+        .controls {
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: clamp(14px, 3.4svh, 26px);
+            padding: 0 clamp(8px, 2vw, 12px);
+        }
+
+        .shoulder-row,
+        .system-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .shoulder {
+            width: clamp(115px, 28vw, 155px);
+            height: clamp(48px, 7svh, 62px);
+            border: 3px solid #2b2b2b;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #6a6a6a 0%, #444 46%, #2d2d2d 100%);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: clamp(20px, 5vw, 28px);
+            font-weight: 800;
+            box-shadow:
+                0 0 0 4px rgba(0, 0, 0, 0.22),
+                inset 0 2px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -12px 18px rgba(0, 0, 0, 0.45);
+        }
+
+        .main-controls {
+            display: grid;
+            grid-template-columns: minmax(158px, 1fr) minmax(142px, 0.9fr);
+            align-items: center;
+            gap: clamp(18px, 4vw, 32px);
+        }
+
+        .dpad-wrap {
+            width: clamp(156px, min(44vw, 25svh), 220px);
+            aspect-ratio: 1;
+            border-radius: 50%;
+            padding: 13px;
+            background: radial-gradient(circle, #3f3f3f 0 36%, #2d2d2d 37% 100%);
+            box-shadow:
+                0 0 0 5px rgba(0, 0, 0, 0.22),
+                inset 0 0 0 4px rgba(255, 255, 255, 0.12),
+                inset 0 0 32px rgba(0, 0, 0, 0.55);
+            position: relative;
+        }
+
+        .dpad-wrap::before {
+            content: "";
+            position: absolute;
+            inset: 12px;
+            border: 3px solid rgba(255, 255, 255, 0.16);
+            border-radius: 50%;
+        }
+
+        .dpad {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .dpad-cross-h,
+        .dpad-cross-v {
+            position: absolute;
+            background: linear-gradient(180deg, #5f5f5f 0%, #424242 45%, #2f2f2f 100%);
+            border: 2px solid rgba(0, 0, 0, 0.45);
+            box-shadow: inset 0 9px 12px rgba(255, 255, 255, 0.12), inset 0 -12px 18px rgba(0, 0, 0, 0.38);
+        }
+
+        .dpad-cross-h {
+            width: 78%;
+            height: 36%;
+            left: 11%;
+            top: 32%;
+            border-radius: 10px;
+        }
+
+        .dpad-cross-v {
+            width: 36%;
+            height: 78%;
+            left: 32%;
+            top: 11%;
+            border-radius: 10px;
+        }
+
+        .dpad-center {
+            position: absolute;
+            width: 32%;
+            height: 32%;
+            left: 34%;
+            top: 34%;
+            border-radius: 50%;
+            background: radial-gradient(circle, #666 0%, #3a3a3a 62%, #252525 100%);
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.72), 0 0 0 2px rgba(255, 255, 255, 0.09);
+        }
+
+        .dpad-hit {
+            position: absolute;
+            border: 0;
+            background: transparent;
+            z-index: 2;
+        }
+
+        .dpad-hit.up,
+        .dpad-hit.down {
+            width: 38%;
+            height: 38%;
+            left: 31%;
+        }
+
+        .dpad-hit.left,
+        .dpad-hit.right {
+            width: 38%;
+            height: 38%;
+            top: 31%;
+        }
+
+        .dpad-hit.up { top: 7%; }
+        .dpad-hit.down { bottom: 7%; }
+        .dpad-hit.left { left: 7%; }
+        .dpad-hit.right { right: 7%; }
+
+        .face-buttons {
+            width: clamp(132px, min(36vw, 21svh), 178px);
+            aspect-ratio: 1 / 0.92;
+            justify-self: end;
+            position: relative;
+        }
+
+        .face-action {
+            position: absolute;
+            width: clamp(50px, min(13.5vw, 8.5svh), 68px);
+            aspect-ratio: 1;
+            border: 4px solid #2a2a2a;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 50% 42%, #666 0%, #444 54%, #2b2b2b 100%),
+                var(--control-bg-dark);
+            color: rgba(255, 255, 255, 0.92);
+            font-size: clamp(15px, 4.2vw, 20px);
+            font-weight: 800;
+            box-shadow:
+                0 0 0 3px rgba(0, 0, 0, 0.25),
+                inset 0 2px 0 rgba(255, 255, 255, 0.16),
+                inset 0 -12px 18px rgba(0, 0, 0, 0.42);
+        }
+
+        .face-action::before {
+            content: "";
+            position: absolute;
+            inset: 9px;
+            border: 2px solid rgba(0, 0, 0, 0.16);
+            border-radius: 50%;
+        }
+
+        .face-action span {
+            position: absolute;
+            left: 50%;
+            bottom: -25px;
+            transform: translateX(-50%);
+        }
+
+        .face-action.a { right: 4%; top: 18%; }
+        .face-action.b { left: 4%; bottom: 18%; }
+
+        .system-row {
+            width: min(260px, 68vw);
+            margin: 0 auto;
+            padding-top: clamp(8px, 2svh, 18px);
+        }
+
+        .system-control {
+            min-width: 64px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--label);
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .pill-button {
+            width: 52px;
+            height: 30px;
+            border-radius: 999px;
+            border: 3px solid #2a2a2a;
+            background: linear-gradient(180deg, #646464, #343434);
+            box-shadow:
+                0 0 0 3px rgba(0, 0, 0, 0.24),
+                inset 0 2px 0 rgba(255, 255, 255, 0.14);
+        }
+
+        .menu-button {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            border: 4px solid #2a2a2a;
+            background: radial-gradient(circle, #666 0%, #414141 58%, #262626 100%);
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 22px;
+            line-height: 1;
+            box-shadow:
+                0 0 0 3px rgba(0, 0, 0, 0.24),
+                inset 0 2px 0 rgba(255, 255, 255, 0.13);
+        }
+
+        .touch-button {
+            cursor: pointer;
+            touch-action: none;
+            outline: none;
+        }
+
+        .touch-button.is-pressed {
+            filter: brightness(1.25);
+            transform: scale(0.96);
+        }
+
+        .face-action.a.is-pressed,
+        .face-action.b.is-pressed,
+        .dpad-hit.is-pressed {
+            transform: scale(0.96);
+        }
+
+        @media (max-height: 720px) {
+            .emulator-shell {
+                gap: 14px;
+            }
+
+            .controls {
+                gap: 14px;
+            }
+
+            .screen-frame {
+                padding-bottom: 20px;
+            }
+
+            .system-row {
+                padding-top: 2px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .main-controls {
+                grid-template-columns: 1fr 0.86fr;
+                gap: 12px;
+            }
+
+            .controls {
+                padding-inline: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="emulator-shell" aria-label="Emulador mobile">
+        <section class="screen-frame" aria-label="Tela do jogo">
+            <div id="game"></div>
+            <div class="screen-brand">Afterplay</div>
+        </section>
+
+        <section class="controls" aria-label="Controles do GBA">
+            <div class="shoulder-row">
+                <button class="touch-button shoulder" type="button" data-input="10" aria-label="Botao L">L</button>
+                <button class="touch-button shoulder" type="button" data-input="11" aria-label="Botao R">R</button>
+            </div>
+
+            <div class="main-controls">
+                <div class="dpad-wrap" aria-label="Direcional">
+                    <div class="dpad">
+                        <div class="dpad-cross-h"></div>
+                        <div class="dpad-cross-v"></div>
+                        <div class="dpad-center"></div>
+                        <button class="touch-button dpad-hit up" type="button" data-input="4" aria-label="Cima"></button>
+                        <button class="touch-button dpad-hit down" type="button" data-input="5" aria-label="Baixo"></button>
+                        <button class="touch-button dpad-hit left" type="button" data-input="6" aria-label="Esquerda"></button>
+                        <button class="touch-button dpad-hit right" type="button" data-input="7" aria-label="Direita"></button>
+                    </div>
+                </div>
+
+                <div class="face-buttons" aria-label="Botoes de acao">
+                    <button class="touch-button face-action a" type="button" data-input="8" aria-label="Botao A"><span>A</span></button>
+                    <button class="touch-button face-action b" type="button" data-input="0" aria-label="Botao B"><span>B</span></button>
+                </div>
+            </div>
+
+            <div class="system-row">
+                <div class="system-control">
+                    <button class="touch-button pill-button" type="button" data-input="2" aria-label="Select"></button>
+                    <span>Select</span>
+                </div>
+                <button class="touch-button menu-button" type="button" aria-label="Menu" data-menu>&#9776;</button>
+                <div class="system-control">
+                    <button class="touch-button pill-button" type="button" data-input="3" aria-label="Start"></button>
+                    <span>Start</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        var urlParams = new URLSearchParams(window.location.search);
+        var romName = urlParams.get('rom') || 'pokemon';
+
+        EJS_player = '#game';
+        EJS_core = 'gba';
+        EJS_gameName = romName;
+        EJS_color = '#4b0082';
+        EJS_startOnLoaded = true;
+        EJS_browserMode = 'mobile';
+        EJS_controlScheme = 'gba';
+        EJS_defaultOptions = {
+            'virtual-gamepad': 'disabled',
+            'menu-bar-button': 'hidden'
+        };
+        EJS_Buttons = {};
+        EJS_pathtodata = 'https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@main/data/';
+        EJS_gameUrl = 'roms/gba/' + romName + '.zip';
+    </script>
+    <script src="https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@main/data/loader.js"></script>
+    <script>
+        (function() {
+            var activePointers = {};
+
+            function emulatorReady() {
+                return window.EJS_emulator && window.EJS_emulator.gameManager && window.EJS_emulator.gameManager.simulateInput;
+            }
+
+            function setInput(input, isPressed) {
+                if (!emulatorReady()) return;
+                window.EJS_emulator.gameManager.simulateInput(0, Number(input), isPressed ? 1 : 0);
+            }
+
+            function press(button, event) {
+                var input = button.getAttribute('data-input');
+                if (!input) return;
+
+                if (event && event.pointerId !== undefined) {
+                    activePointers[event.pointerId] = button;
+                    button.setPointerCapture(event.pointerId);
+                }
+
+                button.classList.add('is-pressed');
+                setInput(input, true);
+            }
+
+            function release(button, event) {
+                var input = button && button.getAttribute('data-input');
+                if (!button || !input) return;
+
+                if (event && event.pointerId !== undefined) {
+                    delete activePointers[event.pointerId];
+                }
+
+                button.classList.remove('is-pressed');
+                setInput(input, false);
+            }
+
+            function closeMenu() {
+                var shell = document.querySelector('.emulator-shell');
+                var menu = document.querySelector('#game .ejs_menu_bar');
+
+                if (shell) {
+                    shell.classList.remove('show-native-menu');
+                }
+
+                if (window.EJS_emulator && window.EJS_emulator.menu && window.EJS_emulator.menu.close) {
+                    window.EJS_emulator.menu.close(true);
+                }
+
+                if (menu) {
+                    menu.style.setProperty('display', 'none', 'important');
+                    menu.style.setProperty('opacity', '0', 'important');
+                    menu.style.setProperty('pointer-events', 'none', 'important');
+                }
+
+                if (window.EJS_emulator && window.EJS_emulator.elements && window.EJS_emulator.elements.parent) {
+                    window.EJS_emulator.elements.parent.focus();
+                }
+            }
+
+            function ensureBackButton() {
+                var menu = document.querySelector('#game .ejs_menu_bar');
+                if (!menu || menu.querySelector('.custom-menu-back')) return;
+
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'custom-menu-back';
+                button.textContent = 'Voltar ao jogo';
+                button.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    closeMenu();
+                });
+
+                menu.insertBefore(button, menu.firstChild);
+            }
+
+            function ensureVolumeControl() {
+                var menu = document.querySelector('#game .ejs_menu_bar');
+                if (!menu || menu.querySelector('.custom-menu-volume')) return;
+
+                var volume = document.createElement('div');
+                volume.className = 'custom-menu-volume';
+
+                var icon = document.createElement('button');
+                icon.type = 'button';
+                icon.className = 'custom-volume-icon';
+                icon.setAttribute('aria-label', 'Ativar ou desativar volume');
+                icon.innerHTML = '<svg viewBox="0 0 640 512" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M533.6 32.5C598.5 85.2 640 165.8 640 256s-41.5 170.8-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256S557.5 113.8 503.3 69.8C493 61.4 491.5 46.3 499.8 36s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64v384c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H48c-26.5 0-48-21.5-48-48v-96c0-26.5 21.5-48 48-48h83.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z"/></svg>';
+
+                var slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = '0';
+                slider.max = '1';
+                slider.step = '0.01';
+                slider.value = '0.5';
+                slider.setAttribute('aria-label', 'Volume');
+
+                volume.appendChild(icon);
+                volume.appendChild(slider);
+                volume.addEventListener('pointerdown', function(event) {
+                    event.stopPropagation();
+                });
+                volume.addEventListener('pointermove', function(event) {
+                    event.stopPropagation();
+                });
+                volume.addEventListener('pointerup', function(event) {
+                    event.stopPropagation();
+                });
+                icon.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    var current = Number(slider.value);
+                    var next = current > 0 ? 0 : (window.EJS_emulator && window.EJS_emulator.volume) || 0.5;
+                    slider.value = next;
+                    slider.style.setProperty('--value', (next * 100) + '%');
+                    applyVolume(next);
+                });
+                menu.insertBefore(volume, menu.children[1] || null);
+            }
+
+            function applyVolume(value) {
+                var volume = Math.max(0, Math.min(1, Number(value)));
+                var emulator = window.EJS_emulator;
+
+                if (!emulator) return;
+
+                emulator.volume = volume;
+                emulator.muted = volume === 0;
+
+                if (emulator.setVolume) {
+                    emulator.setVolume(volume);
+                }
+
+                if (emulator.Module && emulator.Module.SDL2 && emulator.Module.SDL2.audioContext && emulator.Module.SDL2.audioContext.state === 'suspended') {
+                    emulator.Module.SDL2.audioContext.resume();
+                }
+
+                if (emulator.Module && emulator.Module.AL && emulator.Module.AL.currentCtx && emulator.Module.AL.currentCtx.audioCtx && emulator.Module.AL.currentCtx.audioCtx.state === 'suspended') {
+                    emulator.Module.AL.currentCtx.audioCtx.resume();
+                }
+
+                if (emulator.Module && emulator.Module.AL && emulator.Module.AL.currentCtx && emulator.Module.AL.currentCtx.sources) {
+                    emulator.Module.AL.currentCtx.sources.forEach(function(source) {
+                        if (source && source.gain && source.gain.gain) {
+                            source.gain.gain.value = volume;
+                        }
+                    });
+                }
+
+                try {
+                    localStorage.setItem('ejs-settings', JSON.stringify({
+                        volume: volume,
+                        muted: volume === 0
+                    }));
+                } catch (error) {}
+            }
+
+            function setVolumeFromPointer(event, slider) {
+                var rect = slider.getBoundingClientRect();
+                var position = (event.clientX - rect.left) / rect.width;
+                var value = Math.max(0, Math.min(1, position));
+
+                slider.value = value;
+                slider.style.setProperty('--value', (value * 100) + '%');
+                applyVolume(value);
+            }
+
+            function syncVolumeSlider() {
+                var slider = document.querySelector('#game .custom-menu-volume input[type="range"]');
+                var nativeSlider = document.querySelector('#game .ejs_volume_parent input[type="range"]');
+                var emulator = window.EJS_emulator;
+
+                if (!slider || !emulator) return;
+
+                if (!slider.dataset.customVolumeBound) {
+                    var onVolumeInput = function() {
+                        applyVolume(slider.value);
+                    };
+
+                    slider.addEventListener('input', onVolumeInput);
+                    slider.addEventListener('change', onVolumeInput);
+                    slider.addEventListener('mousedown', onVolumeInput);
+                    slider.addEventListener('touchstart', onVolumeInput);
+                    slider.addEventListener('touchmove', onVolumeInput);
+                    slider.addEventListener('click', onVolumeInput);
+                    slider.addEventListener('pointerdown', function(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        slider.setPointerCapture(event.pointerId);
+                        setVolumeFromPointer(event, slider);
+                    });
+                    slider.addEventListener('pointermove', function(event) {
+                        if (event.buttons === 1 || event.pointerType === 'touch') {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setVolumeFromPointer(event, slider);
+                        }
+                    });
+                    slider.addEventListener('pointerup', function(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setVolumeFromPointer(event, slider);
+                    });
+                    slider.dataset.customVolumeBound = 'true';
+                }
+
+                slider.value = emulator.muted ? 0 : emulator.volume;
+                slider.style.setProperty('--value', (Number(slider.value) * 100) + '%');
+
+                if (nativeSlider) {
+                    nativeSlider.value = slider.value;
+                    nativeSlider.style.setProperty('--value', (Number(slider.value) * 100) + '%');
+                }
+            }
+
+            function toggleMenu() {
+                var shell = document.querySelector('.emulator-shell');
+                var menu = document.querySelector('#game .ejs_menu_bar');
+                if (!shell || !menu) return;
+
+                var shouldOpen = !shell.classList.contains('show-native-menu');
+
+                if (shouldOpen) {
+                    ensureBackButton();
+                    ensureVolumeControl();
+                    syncVolumeSlider();
+                }
+
+                shell.classList.toggle('show-native-menu', shouldOpen);
+
+                if (window.EJS_emulator && window.EJS_emulator.menu) {
+                    if (shouldOpen && window.EJS_emulator.menu.open) {
+                        window.EJS_emulator.menu.open(true);
+                    } else if (!shouldOpen && window.EJS_emulator.menu.close) {
+                        window.EJS_emulator.menu.close(true);
+                    }
+                }
+
+                menu.style.setProperty('display', shouldOpen ? 'flex' : 'none', 'important');
+                menu.style.setProperty('opacity', shouldOpen ? '1' : '0', 'important');
+                menu.style.setProperty('pointer-events', shouldOpen ? 'auto' : 'none', 'important');
+            }
+
+            document.querySelectorAll('[data-input]').forEach(function(button) {
+                button.addEventListener('pointerdown', function(event) {
+                    event.preventDefault();
+                    press(button, event);
+                });
+
+                button.addEventListener('pointerup', function(event) {
+                    event.preventDefault();
+                    release(button, event);
+                });
+
+                button.addEventListener('pointercancel', function(event) {
+                    event.preventDefault();
+                    release(button, event);
+                });
+
+                button.addEventListener('lostpointercapture', function(event) {
+                    release(button, event);
+                });
+            });
+
+            document.querySelector('[data-menu]').addEventListener('click', function(event) {
+                event.preventDefault();
+                toggleMenu();
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeMenu();
+                }
+            });
+
+            window.addEventListener('pointerup', function(event) {
+                release(activePointers[event.pointerId], event);
+            });
+
+            window.addEventListener('blur', function() {
+                document.querySelectorAll('[data-input].is-pressed').forEach(function(button) {
+                    release(button);
+                });
+            });
+
+            document.addEventListener('contextmenu', function(event) {
+                event.preventDefault();
+            });
+        })();
+    </script>
+</body>
+</html>
