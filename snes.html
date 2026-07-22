@@ -711,6 +711,28 @@
                 setInput(input, false);
             }
 
+            function resumeGameIfPaused() {
+                var shell = document.querySelector('.emulator-shell');
+                var menu = document.querySelector('#game .ejs_menu_bar');
+                var pauseButton = menu && menu.querySelector('[data-custom-menu-action="pause"]');
+
+                if (shell && shell.dataset.gamePaused === 'true' && pauseButton) {
+                    menu.dataset.customResumingGame = 'true';
+                    pauseButton.click();
+                    menu.dataset.customResumingGame = 'false';
+                    shell.dataset.gamePaused = 'false';
+                }
+
+                var emulator = window.EJS_emulator;
+
+                if (emulator) {
+                    if (emulator.play) emulator.play();
+                    if (emulator.resume) emulator.resume();
+                    if (emulator.gameManager && emulator.gameManager.resume) emulator.gameManager.resume();
+                    if (emulator.Module && emulator.Module.resumeMainLoop) emulator.Module.resumeMainLoop();
+                }
+            }
+
             function closeMenu() {
                 var shell = document.querySelector('.emulator-shell');
                 var menu = document.querySelector('#game .ejs_menu_bar');
@@ -740,6 +762,7 @@
                 button.textContent = 'Retornar para o jogo (Jogar)';
                 button.addEventListener('click', function(event) {
                     event.preventDefault();
+                    resumeGameIfPaused();
                     closeMenu();
                 });
 
@@ -811,6 +834,22 @@
                 }
             }
 
+            function bindPauseButton(button) {
+                if (button.dataset.customPauseBound === 'true') return;
+
+                button.dataset.customPauseBound = 'true';
+                button.addEventListener('click', function() {
+                    var menu = document.querySelector('#game .ejs_menu_bar');
+                    var shell = document.querySelector('.emulator-shell');
+
+                    if (!shell || (menu && menu.dataset.customResumingGame === 'true')) return;
+
+                    window.setTimeout(function() {
+                        shell.dataset.gamePaused = 'true';
+                    }, 0);
+                });
+            }
+
             function customizeMenuOptions() {
                 var menu = document.querySelector('#game .ejs_menu_bar');
                 if (!menu) return;
@@ -830,6 +869,11 @@
 
                         if (label) {
                             setMenuButtonLabel(button, label);
+
+                            if (label === 'Pausar') {
+                                button.dataset.customMenuAction = 'pause';
+                                bindPauseButton(button);
+                            }
                         }
                     });
                 } finally {
