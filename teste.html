@@ -764,6 +764,7 @@
             var activePointers = {};
             var activeTouches = {};
             var buttonPressCounts = new WeakMap();
+            var usingPointerTouch = false;
 
             function emulatorReady() {
                 return window.EJS_emulator && window.EJS_emulator.gameManager && window.EJS_emulator.gameManager.simulateInput;
@@ -816,9 +817,11 @@
 
             function press(button, event) {
                 if (!button || !button.getAttribute('data-input')) return;
-                if (event && event.pointerType === 'touch' && window.TouchEvent) return;
 
                 if (event && event.pointerId !== undefined) {
+                    if (event.pointerType === 'touch') {
+                        usingPointerTouch = true;
+                    }
                     if (activePointers[event.pointerId] === button) return;
                     if (activePointers[event.pointerId]) {
                         stopButton(activePointers[event.pointerId]);
@@ -834,7 +837,6 @@
 
             function release(button, event) {
                 if (!button || !button.getAttribute('data-input')) return;
-                if (event && event.pointerType === 'touch' && window.TouchEvent) return;
 
                 if (event && event.pointerId !== undefined) {
                     delete activePointers[event.pointerId];
@@ -1100,21 +1102,25 @@
             });
 
             document.querySelector('.controls').addEventListener('touchstart', function(event) {
+                if (usingPointerTouch) return;
                 event.preventDefault();
                 Array.prototype.forEach.call(event.changedTouches, pressTouch);
             }, { passive: false });
 
             document.querySelector('.controls').addEventListener('touchmove', function(event) {
+                if (usingPointerTouch) return;
                 event.preventDefault();
                 Array.prototype.forEach.call(event.changedTouches, moveTouch);
             }, { passive: false });
 
             document.querySelector('.controls').addEventListener('touchend', function(event) {
+                if (usingPointerTouch) return;
                 event.preventDefault();
                 Array.prototype.forEach.call(event.changedTouches, releaseTouch);
             }, { passive: false });
 
             document.querySelector('.controls').addEventListener('touchcancel', function(event) {
+                if (usingPointerTouch) return;
                 event.preventDefault();
                 Array.prototype.forEach.call(event.changedTouches, releaseTouch);
             }, { passive: false });
