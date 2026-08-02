@@ -586,14 +586,14 @@
 
             .face-buttons {
                 grid-column: 3;
-                width: clamp(152px, min(24vw, 44svh), 190px);
+                width: clamp(136px, min(21vw, 38svh), 166px);
                 aspect-ratio: 1;
                 justify-self: center;
                 pointer-events: auto;
             }
 
             .face-action {
-                width: clamp(58px, min(11vw, 18svh), 76px);
+                width: clamp(50px, min(9.4vw, 15.8svh), 66px);
                 border-width: 3px;
                 font-size: clamp(16px, 4.8svh, 22px);
                 pointer-events: auto;
@@ -618,14 +618,14 @@
 
             .system-control {
                 position: absolute;
-                min-width: 94px;
+                min-width: 78px;
                 gap: 4px;
                 font-size: 10px;
                 pointer-events: auto;
             }
 
             .system-control:first-child {
-                left: max(0px, calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) - 100px));
+                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) - 84px);
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
@@ -635,17 +635,17 @@
             }
 
             .pill-button {
-                width: clamp(84px, 24svh, 100px);
-                height: clamp(48px, 12.8svh, 58px);
+                width: clamp(68px, 18svh, 78px);
+                height: clamp(38px, 10.4svh, 46px);
                 border-width: 2px;
             }
 
             .menu-button {
                 position: absolute;
-                right: max(66px, calc(env(safe-area-inset-right) + 66px));
+                right: calc(env(safe-area-inset-right) + 10px + (clamp(198px, 29vw, 224px) / 2) - (clamp(64px, 16.5svh, 74px) / 2));
                 bottom: max(7px, env(safe-area-inset-bottom));
-                width: clamp(84px, 22svh, 100px);
-                height: clamp(84px, 22svh, 100px);
+                width: clamp(64px, 16.5svh, 74px);
+                height: clamp(64px, 16.5svh, 74px);
                 border-width: 3px;
                 font-size: clamp(28px, 8svh, 36px);
                 pointer-events: auto;
@@ -725,6 +725,8 @@
     <script>
         (function() {
             var activePointers = {};
+            var activeTouches = {};
+            var buttonPressCounts = new WeakMap();
 
             function emulatorReady() {
                 return window.EJS_emulator && window.EJS_emulator.gameManager && window.EJS_emulator.gameManager.simulateInput;
@@ -746,31 +748,99 @@
                 dpad.classList.toggle('pressed-' + direction, isPressed);
             }
 
-            function press(button, event) {
-                var input = button.getAttribute('data-input');
+            function startButton(button) {
+                var input = button && button.getAttribute('data-input');
                 if (!input) return;
 
-                if (event && event.pointerId !== undefined) {
-                    activePointers[event.pointerId] = button;
-                    button.setPointerCapture(event.pointerId);
-                }
+                var count = buttonPressCounts.get(button) || 0;
+                buttonPressCounts.set(button, count + 1);
+                if (count > 0) return;
 
                 button.classList.add('is-pressed');
                 setDpadState(button, true);
                 setInput(input, true);
             }
 
-            function release(button, event) {
+            function stopButton(button) {
                 var input = button && button.getAttribute('data-input');
                 if (!button || !input) return;
+
+                var count = buttonPressCounts.get(button) || 0;
+                if (count > 1) {
+                    buttonPressCounts.set(button, count - 1);
+                    return;
+                }
+
+                buttonPressCounts.delete(button);
+                button.classList.remove('is-pressed');
+                setDpadState(button, false);
+                setInput(input, false);
+            }
+
+            function press(button, event) {
+                if (!button || !button.getAttribute('data-input')) return;
+                if (event && event.pointerType === 'touch' && window.TouchEvent) return;
+
+                if (event && event.pointerId !== undefined) {
+                    if (activePointers[event.pointerId] === button) return;
+                    if (activePointers[event.pointerId]) {
+                        stopButton(activePointers[event.pointerId]);
+                    }
+                    activePointers[event.pointerId] = button;
+                    try {
+                        button.setPointerCapture(event.pointerId);
+                    } catch (error) {}
+                }
+
+                startButton(button);
+            }
+
+            function release(button, event) {
+                if (!button || !button.getAttribute('data-input')) return;
+                if (event && event.pointerType === 'touch' && window.TouchEvent) return;
 
                 if (event && event.pointerId !== undefined) {
                     delete activePointers[event.pointerId];
                 }
 
-                button.classList.remove('is-pressed');
-                setDpadState(button, false);
-                setInput(input, false);
+                stopButton(button);
+            }
+
+            function getTouchButton(touch) {
+                var target = document.elementFromPoint(touch.clientX, touch.clientY);
+                return target && target.closest ? target.closest('[data-input]') : null;
+            }
+
+            function pressTouch(touch) {
+                var button = getTouchButton(touch);
+                if (!button) return;
+                if (activeTouches[touch.identifier] === button) return;
+                if (activeTouches[touch.identifier]) {
+                    stopButton(activeTouches[touch.identifier]);
+                }
+                activeTouches[touch.identifier] = button;
+                startButton(button);
+            }
+
+            function moveTouch(touch) {
+                var button = getTouchButton(touch);
+                var current = activeTouches[touch.identifier];
+                if (button === current) return;
+                if (current) {
+                    stopButton(current);
+                    delete activeTouches[touch.identifier];
+                }
+                if (button) {
+                    activeTouches[touch.identifier] = button;
+                    startButton(button);
+                }
+            }
+
+            function releaseTouch(touch) {
+                var button = activeTouches[touch.identifier];
+                if (!button) return;
+                delete activeTouches[touch.identifier];
+                stopButton(button);
             }
 
             function closeMenu() {
@@ -999,6 +1069,26 @@
                     release(button, event);
                 });
             });
+
+            document.querySelector('.controls').addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, pressTouch);
+            }, { passive: false });
+
+            document.querySelector('.controls').addEventListener('touchmove', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, moveTouch);
+            }, { passive: false });
+
+            document.querySelector('.controls').addEventListener('touchend', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, releaseTouch);
+            }, { passive: false });
+
+            document.querySelector('.controls').addEventListener('touchcancel', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, releaseTouch);
+            }, { passive: false });
 
             document.querySelector('[data-menu]').addEventListener('click', function(event) {
                 event.preventDefault();

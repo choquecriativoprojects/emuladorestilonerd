@@ -696,9 +696,9 @@
 
             .face-buttons {
                 grid-column: 3;
-                --face-size: clamp(56px, min(8.5vw, 15.5svh), 62px);
-                --face-inset: 6px;
-                width: clamp(190px, min(26vw, 52svh), 222px);
+                --face-size: clamp(50px, min(7.4vw, 13.2svh), 56px);
+                --face-inset: 10px;
+                width: clamp(172px, min(23.6vw, 46svh), 196px);
                 justify-self: end;
                 pointer-events: auto;
             }
@@ -744,31 +744,32 @@
             .system-control,
             .menu-control {
                 position: absolute;
-                min-width: 68px;
+                width: 60px;
+                min-width: 60px;
                 gap: 4px;
                 font-size: 10px;
                 pointer-events: auto;
             }
 
             .system-control:first-child {
-                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) - 75px);
+                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) - 66px);
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
             .system-control:last-child {
-                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) + 7px);
+                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) + 6px);
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
             .menu-control {
-                right: max(78px, calc(env(safe-area-inset-right) + 78px));
+                right: calc(env(safe-area-inset-right) + 10px + (clamp(172px, min(23.6vw, 46svh), 196px) / 2) - 30px);
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
             .pill-button,
             .menu-button {
-                width: clamp(54px, 14svh, 62px);
-                height: clamp(54px, 14svh, 62px);
+                width: clamp(46px, 11.5svh, 54px);
+                height: clamp(46px, 11.5svh, 54px);
                 border-width: 2px;
             }
 
@@ -850,6 +851,8 @@
     <script>
         (function() {
             var activePointers = {};
+            var activeTouches = {};
+            var buttonPressCounts = new WeakMap();
 
             function emulatorReady() {
                 return window.EJS_emulator && window.EJS_emulator.gameManager && window.EJS_emulator.gameManager.simulateInput;
@@ -871,31 +874,99 @@
                 dpad.classList.toggle('pressed-' + direction, isPressed);
             }
 
-            function press(button, event) {
-                var input = button.getAttribute('data-input');
+            function startButton(button) {
+                var input = button && button.getAttribute('data-input');
                 if (!input) return;
 
-                if (event && event.pointerId !== undefined) {
-                    activePointers[event.pointerId] = button;
-                    button.setPointerCapture(event.pointerId);
-                }
+                var count = buttonPressCounts.get(button) || 0;
+                buttonPressCounts.set(button, count + 1);
+                if (count > 0) return;
 
                 button.classList.add('is-pressed');
                 setDpadState(button, true);
                 setInput(input, true);
             }
 
-            function release(button, event) {
+            function stopButton(button) {
                 var input = button && button.getAttribute('data-input');
                 if (!button || !input) return;
+
+                var count = buttonPressCounts.get(button) || 0;
+                if (count > 1) {
+                    buttonPressCounts.set(button, count - 1);
+                    return;
+                }
+
+                buttonPressCounts.delete(button);
+                button.classList.remove('is-pressed');
+                setDpadState(button, false);
+                setInput(input, false);
+            }
+
+            function press(button, event) {
+                if (!button || !button.getAttribute('data-input')) return;
+                if (event && event.pointerType === 'touch' && window.TouchEvent) return;
+
+                if (event && event.pointerId !== undefined) {
+                    if (activePointers[event.pointerId] === button) return;
+                    if (activePointers[event.pointerId]) {
+                        stopButton(activePointers[event.pointerId]);
+                    }
+                    activePointers[event.pointerId] = button;
+                    try {
+                        button.setPointerCapture(event.pointerId);
+                    } catch (error) {}
+                }
+
+                startButton(button);
+            }
+
+            function release(button, event) {
+                if (!button || !button.getAttribute('data-input')) return;
+                if (event && event.pointerType === 'touch' && window.TouchEvent) return;
 
                 if (event && event.pointerId !== undefined) {
                     delete activePointers[event.pointerId];
                 }
 
-                button.classList.remove('is-pressed');
-                setDpadState(button, false);
-                setInput(input, false);
+                stopButton(button);
+            }
+
+            function getTouchButton(touch) {
+                var target = document.elementFromPoint(touch.clientX, touch.clientY);
+                return target && target.closest ? target.closest('[data-input]') : null;
+            }
+
+            function pressTouch(touch) {
+                var button = getTouchButton(touch);
+                if (!button) return;
+                if (activeTouches[touch.identifier] === button) return;
+                if (activeTouches[touch.identifier]) {
+                    stopButton(activeTouches[touch.identifier]);
+                }
+                activeTouches[touch.identifier] = button;
+                startButton(button);
+            }
+
+            function moveTouch(touch) {
+                var button = getTouchButton(touch);
+                var current = activeTouches[touch.identifier];
+                if (button === current) return;
+                if (current) {
+                    stopButton(current);
+                    delete activeTouches[touch.identifier];
+                }
+                if (button) {
+                    activeTouches[touch.identifier] = button;
+                    startButton(button);
+                }
+            }
+
+            function releaseTouch(touch) {
+                var button = activeTouches[touch.identifier];
+                if (!button) return;
+                delete activeTouches[touch.identifier];
+                stopButton(button);
             }
 
             function resumeGameIfPaused() {
@@ -1280,6 +1351,26 @@
                     release(button, event);
                 });
             });
+
+            document.querySelector('.controls').addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, pressTouch);
+            }, { passive: false });
+
+            document.querySelector('.controls').addEventListener('touchmove', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, moveTouch);
+            }, { passive: false });
+
+            document.querySelector('.controls').addEventListener('touchend', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, releaseTouch);
+            }, { passive: false });
+
+            document.querySelector('.controls').addEventListener('touchcancel', function(event) {
+                event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, releaseTouch);
+            }, { passive: false });
 
             document.querySelector('[data-menu]').addEventListener('click', function(event) {
                 event.preventDefault();
