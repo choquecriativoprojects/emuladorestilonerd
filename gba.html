@@ -818,50 +818,108 @@
                 setInput(input, false);
             }
 
+            function toButtonList(value) {
+                if (!value) return [];
+                return Array.isArray(value) ? value : [value];
+            }
+
+            function startButtons(buttons) {
+                toButtonList(buttons).forEach(startButton);
+            }
+
+            function stopButtons(buttons) {
+                toButtonList(buttons).forEach(stopButton);
+            }
+
+            function getContactButtons(button, event) {
+                var target = (event && event.target && event.target.closest) ? event.target : button;
+                var group = target && target.closest ? target.closest('.face-buttons') : null;
+                if (!group) return button ? [button] : [];
+
+                var buttons = Array.prototype.slice.call(group.querySelectorAll('[data-input]'));
+                var x = event && event.clientX;
+                var y = event && event.clientY;
+                if (typeof x !== 'number' || typeof y !== 'number') return button ? [button] : [];
+
+                var measuredWidth = event && event.width ? event.width : 0;
+                var measuredHeight = event && event.height ? event.height : 0;
+                var contactRadius = Math.max(measuredWidth, measuredHeight) / 2;
+                var matches = buttons.map(function(item) {
+                    var rect = item.getBoundingClientRect();
+                    var dx = x - (rect.left + rect.width / 2);
+                    var dy = y - (rect.top + rect.height / 2);
+                    var distance = Math.sqrt(dx * dx + dy * dy);
+                    var chordRadius = Math.min(74, Math.max(54, rect.width * 0.82 + contactRadius * 0.65));
+                    return { button: item, distance: distance, active: distance <= chordRadius };
+                }).filter(function(item) {
+                    return item.active;
+                }).sort(function(a, b) {
+                    return a.distance - b.distance;
+                }).slice(0, 2).map(function(item) {
+                    return item.button;
+                });
+
+                if (button && matches.indexOf(button) === -1) {
+                    matches.unshift(button);
+                    matches = matches.slice(0, 2);
+                }
+
+                return matches.length ? matches : (button ? [button] : []);
+            }
+
             function press(button, event) {
-                if (!button || !button.getAttribute('data-input')) return;
+                var buttons = getContactButtons(button, event);
+                if (!buttons.length) return;
 
                 if (event && event.pointerId !== undefined) {
                     if (event.pointerType === 'touch') {
                         usingPointerTouch = true;
                     }
-                    if (activePointers[event.pointerId] === button) return;
-                    if (activePointers[event.pointerId]) {
-                        stopButton(activePointers[event.pointerId]);
-                    }
-                    activePointers[event.pointerId] = button;
+                    if (activePointers[event.pointerId]) return;
+                    activePointers[event.pointerId] = buttons;
+                    var captureTarget = button || (event.currentTarget && event.currentTarget.setPointerCapture ? event.currentTarget : null);
                     try {
-                        button.setPointerCapture(event.pointerId);
+                        if (captureTarget) captureTarget.setPointerCapture(event.pointerId);
                     } catch (error) {}
                 }
 
-                startButton(button);
+                startButtons(buttons);
             }
 
             function release(button, event) {
-                if (!button || !button.getAttribute('data-input')) return;
+                var buttons = button;
+                if (event && event.pointerId !== undefined && activePointers[event.pointerId]) {
+                    buttons = activePointers[event.pointerId];
+                }
+                if (!buttons) return;
 
                 if (event && event.pointerId !== undefined) {
                     delete activePointers[event.pointerId];
                 }
 
-                stopButton(button);
+                stopButtons(buttons);
             }
 
-            function getTouchButton(touch) {
+            function getTouchButtons(touch) {
                 var target = document.elementFromPoint(touch.clientX, touch.clientY);
-                return target && target.closest ? target.closest('[data-input]') : null;
+                var button = target && target.closest ? target.closest('[data-input]') : null;
+                var group = target && target.closest ? target.closest('.face-buttons') : null;
+                if (!group) return button ? [button] : [];
+                return getContactButtons(button, {
+                    target: target,
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
+                    width: (touch.radiusX || 0) * 2,
+                    height: (touch.radiusY || 0) * 2
+                });
             }
 
             function pressTouch(touch) {
-                var button = getTouchButton(touch);
-                if (!button) return;
-                if (activeTouches[touch.identifier] === button) return;
-                if (activeTouches[touch.identifier]) {
-                    stopButton(activeTouches[touch.identifier]);
-                }
-                activeTouches[touch.identifier] = button;
-                startButton(button);
+                var buttons = getTouchButtons(touch);
+                if (!buttons.length) return;
+                if (activeTouches[touch.identifier]) return;
+                activeTouches[touch.identifier] = buttons;
+                startButtons(buttons);
             }
 
             function moveTouch(touch) {
@@ -871,10 +929,10 @@
             }
 
             function releaseTouch(touch) {
-                var button = activeTouches[touch.identifier];
-                if (!button) return;
+                var buttons = activeTouches[touch.identifier];
+                if (!buttons) return;
                 delete activeTouches[touch.identifier];
-                stopButton(button);
+                stopButtons(buttons);
             }
 
             function closeMenu() {
@@ -1101,6 +1159,28 @@
 
                 button.addEventListener('lostpointercapture', function(event) {
                     release(button, event);
+                });
+            });
+
+            document.querySelectorAll('.face-buttons').forEach(function(group) {
+                group.addEventListener('pointerdown', function(event) {
+                    if (event.target && event.target.closest && event.target.closest('[data-input]')) return;
+                    event.preventDefault();
+                    press(null, event);
+                });
+
+                group.addEventListener('pointerup', function(event) {
+                    event.preventDefault();
+                    release(null, event);
+                });
+
+                group.addEventListener('pointercancel', function(event) {
+                    event.preventDefault();
+                    release(null, event);
+                });
+
+                group.addEventListener('lostpointercapture', function(event) {
+                    release(null, event);
                 });
             });
 
