@@ -830,40 +830,59 @@
                 toButtonList(buttons).forEach(stopButton);
             }
 
-            function getContactButtons(button, event) {
-                var target = (event && event.target && event.target.closest) ? event.target : button;
-                var group = target && target.closest ? target.closest('.face-buttons') : null;
-                if (!group) return button ? [button] : [];
+            function mergeButtonLists(currentButtons, newButtons) {
+                var merged = toButtonList(currentButtons).slice();
+                toButtonList(newButtons).forEach(function(button) {
+                    if (merged.indexOf(button) === -1 && merged.length < 2) {
+                        merged.push(button);
+                    }
+                });
+                return merged;
+            }
 
-                var buttons = Array.prototype.slice.call(group.querySelectorAll('[data-input]'));
+            function getContactButtons(button) {
+                return button ? [button] : [];
+            }
+
+            function getMovingContactButtons(currentButtons, event) {
+                var firstButton = toButtonList(currentButtons)[0];
+                var group = firstButton && firstButton.closest ? firstButton.closest('.face-buttons') : null;
                 var x = event && event.clientX;
                 var y = event && event.clientY;
-                if (typeof x !== 'number' || typeof y !== 'number') return button ? [button] : [];
+                if (!group || typeof x !== 'number' || typeof y !== 'number') return [];
 
                 var measuredWidth = event && event.width ? event.width : 0;
                 var measuredHeight = event && event.height ? event.height : 0;
-                var contactRadius = Math.max(measuredWidth, measuredHeight) / 2;
-                var matches = buttons.map(function(item) {
+                var contactPadding = Math.min(18, Math.max(6, Math.max(measuredWidth, measuredHeight) * 0.35));
+                var buttons = Array.prototype.slice.call(group.querySelectorAll('[data-input]'));
+
+                return buttons.map(function(item) {
                     var rect = item.getBoundingClientRect();
                     var dx = x - (rect.left + rect.width / 2);
                     var dy = y - (rect.top + rect.height / 2);
                     var distance = Math.sqrt(dx * dx + dy * dy);
-                    var chordRadius = Math.min(74, Math.max(54, rect.width * 0.82 + contactRadius * 0.65));
-                    return { button: item, distance: distance, active: distance <= chordRadius };
+                    var active = x >= rect.left - contactPadding &&
+                        x <= rect.right + contactPadding &&
+                        y >= rect.top - contactPadding &&
+                        y <= rect.bottom + contactPadding;
+                    return { button: item, distance: distance, active: active };
                 }).filter(function(item) {
                     return item.active;
                 }).sort(function(a, b) {
                     return a.distance - b.distance;
-                }).slice(0, 2).map(function(item) {
+                }).map(function(item) {
                     return item.button;
                 });
+            }
 
-                if (button && matches.indexOf(button) === -1) {
-                    matches.unshift(button);
-                    matches = matches.slice(0, 2);
-                }
-
-                return matches.length ? matches : (button ? [button] : []);
+            function addMovedButtons(activeList, event) {
+                var nextButtons = mergeButtonLists(activeList, getMovingContactButtons(activeList, event));
+                nextButtons.forEach(function(button) {
+                    if (activeList.indexOf(button) === -1) {
+                        startButton(button);
+                    }
+                });
+                return nextButtons;
             }
 
             function press(button, event) {
@@ -899,13 +918,19 @@
                 stopButtons(buttons);
             }
 
+            function movePointer(event) {
+                if (!event || event.pointerId === undefined || !activePointers[event.pointerId]) return;
+                activePointers[event.pointerId] = addMovedButtons(activePointers[event.pointerId], event);
+            }
+
             function getTouchButtons(touch) {
                 var target = document.elementFromPoint(touch.clientX, touch.clientY);
                 var button = target && target.closest ? target.closest('[data-input]') : null;
-                var group = target && target.closest ? target.closest('.face-buttons') : null;
-                if (!group) return button ? [button] : [];
-                return getContactButtons(button, {
-                    target: target,
+                return getContactButtons(button);
+            }
+
+            function getMovingTouchButtons(currentButtons, touch) {
+                return getMovingContactButtons(currentButtons, {
                     clientX: touch.clientX,
                     clientY: touch.clientY,
                     width: (touch.radiusX || 0) * 2,
@@ -924,7 +949,19 @@
             function moveTouch(touch) {
                 if (!activeTouches[touch.identifier]) {
                     pressTouch(touch);
+                    return;
                 }
+                var previousButtons = activeTouches[touch.identifier];
+                var nextButtons = mergeButtonLists(
+                    previousButtons,
+                    getMovingTouchButtons(previousButtons, touch)
+                );
+                nextButtons.forEach(function(button) {
+                    if (previousButtons.indexOf(button) === -1) {
+                        startButton(button);
+                    }
+                });
+                activeTouches[touch.identifier] = nextButtons;
             }
 
             function releaseTouch(touch) {
@@ -1144,6 +1181,11 @@
                 button.addEventListener('pointerdown', function(event) {
                     event.preventDefault();
                     press(button, event);
+                });
+
+                button.addEventListener('pointermove', function(event) {
+                    event.preventDefault();
+                    movePointer(event);
                 });
 
                 button.addEventListener('pointerup', function(event) {
