@@ -505,9 +505,9 @@
                 aspect-ratio: auto;
                 margin: 0;
                 padding:
-                    max(42px, env(safe-area-inset-top))
+                    max(14px, env(safe-area-inset-top))
                     max(10px, env(safe-area-inset-right))
-                    max(54px, env(safe-area-inset-bottom))
+                    max(14px, env(safe-area-inset-bottom))
                     max(10px, env(safe-area-inset-left));
                 border: 0;
                 border-radius: 0;
@@ -518,9 +518,9 @@
             }
 
             .screen-frame {
-                width: min(54vw, calc((100svh - 118px) * 4 / 3));
-                max-width: calc(100vw - 288px);
-                min-width: 244px;
+                width: min(60vw, calc((100svh - 28px) * 4 / 3));
+                max-width: calc(100vw - clamp(390px, 58vw, 460px));
+                min-width: min(276px, calc(100vw - 360px));
                 padding: clamp(6px, 1.8svh, 10px) clamp(6px, 1.8svh, 10px) clamp(12px, 2.8svh, 16px);
                 border-radius: 10px;
                 z-index: 1;
@@ -548,16 +548,16 @@
                 left: max(10px, env(safe-area-inset-left));
                 right: max(10px, env(safe-area-inset-right));
                 top: max(6px, env(safe-area-inset-top));
-                height: clamp(30px, 9svh, 40px);
+                height: clamp(36px, 10svh, 46px);
                 z-index: 3;
             }
 
             .shoulder {
-                width: clamp(86px, 17vw, 142px);
-                height: clamp(30px, 9svh, 40px);
+                width: clamp(118px, 19vw, 162px);
+                height: clamp(36px, 10svh, 46px);
                 border-width: 2px;
                 border-radius: 14px;
-                font-size: clamp(16px, 4svh, 22px);
+                font-size: clamp(18px, 4.8svh, 24px);
                 pointer-events: auto;
             }
 
@@ -565,70 +565,85 @@
                 position: absolute;
                 inset: 0;
                 display: grid;
-                grid-template-columns: clamp(120px, 22vw, 176px) minmax(244px, 1fr) clamp(120px, 22vw, 176px);
+                grid-template-columns: clamp(174px, 27vw, 212px) minmax(276px, 1fr) clamp(198px, 29vw, 224px);
                 align-items: center;
                 justify-content: stretch;
                 gap: 0;
                 padding:
-                    max(44px, calc(env(safe-area-inset-top) + 36px))
+                    max(46px, calc(env(safe-area-inset-top) + 40px))
                     max(10px, env(safe-area-inset-right))
-                    max(54px, calc(env(safe-area-inset-bottom) + 48px))
+                    max(78px, calc(env(safe-area-inset-bottom) + 70px))
                     max(10px, env(safe-area-inset-left));
                 z-index: 2;
             }
 
             .dpad-wrap {
                 grid-column: 1;
-                width: clamp(104px, min(19vw, 32svh), 148px);
+                width: clamp(146px, min(24vw, 42svh), 178px);
                 justify-self: center;
             }
 
             .face-buttons {
                 grid-column: 3;
-                width: clamp(112px, min(20vw, 34svh), 150px);
+                width: clamp(152px, min(24vw, 44svh), 190px);
                 aspect-ratio: 1;
                 justify-self: center;
             }
 
             .face-action {
-                width: clamp(44px, min(9vw, 15svh), 60px);
+                width: clamp(58px, min(11vw, 18svh), 76px);
                 border-width: 3px;
-                font-size: clamp(13px, 3.8svh, 18px);
+                font-size: clamp(16px, 4.8svh, 22px);
             }
 
             .face-action span {
-                bottom: -20px;
+                bottom: -24px;
             }
 
             .system-row {
                 position: absolute;
-                left: 50%;
-                bottom: max(6px, env(safe-area-inset-bottom));
-                transform: translateX(-50%);
-                width: min(252px, 46vw);
+                inset: 0;
+                transform: none;
+                width: auto;
+                height: auto;
                 margin: 0;
                 padding: 0;
                 z-index: 3;
-                pointer-events: auto;
+                pointer-events: none;
             }
 
             .system-control {
-                min-width: 50px;
-                gap: 3px;
-                font-size: 9px;
+                position: absolute;
+                min-width: 94px;
+                gap: 4px;
+                font-size: 10px;
+                pointer-events: auto;
+            }
+
+            .system-control:first-child {
+                left: max(18px, calc(env(safe-area-inset-left) + 18px));
+                bottom: max(7px, env(safe-area-inset-bottom));
+            }
+
+            .system-control:last-child {
+                left: max(124px, calc(env(safe-area-inset-left) + 124px));
+                bottom: max(7px, env(safe-area-inset-bottom));
             }
 
             .pill-button {
-                width: clamp(42px, 12svh, 50px);
-                height: clamp(24px, 6.4svh, 29px);
+                width: clamp(84px, 24svh, 100px);
+                height: clamp(48px, 12.8svh, 58px);
                 border-width: 2px;
             }
 
             .menu-button {
-                width: clamp(42px, 11svh, 50px);
-                height: clamp(42px, 11svh, 50px);
+                position: absolute;
+                right: max(66px, calc(env(safe-area-inset-right) + 66px));
+                bottom: max(7px, env(safe-area-inset-bottom));
+                width: clamp(84px, 22svh, 100px);
+                height: clamp(84px, 22svh, 100px);
                 border-width: 3px;
-                font-size: clamp(17px, 4.8svh, 22px);
+                font-size: clamp(28px, 8svh, 36px);
                 pointer-events: auto;
             }
         }
