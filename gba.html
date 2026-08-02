@@ -486,6 +486,152 @@
                 padding-inline: 0;
             }
         }
+
+        @media (orientation: landscape) and (max-height: 520px) {
+            html,
+            body {
+                height: 100%;
+                overflow: hidden;
+            }
+
+            body {
+                display: block;
+            }
+
+            .emulator-shell {
+                width: 100vw;
+                height: 100svh;
+                max-width: none;
+                aspect-ratio: auto;
+                margin: 0;
+                padding:
+                    max(42px, env(safe-area-inset-top))
+                    max(10px, env(safe-area-inset-right))
+                    max(54px, env(safe-area-inset-bottom))
+                    max(10px, env(safe-area-inset-left));
+                border: 0;
+                border-radius: 0;
+                display: grid;
+                place-items: center;
+                gap: 0;
+                overflow: hidden;
+            }
+
+            .screen-frame {
+                width: min(54vw, calc((100svh - 118px) * 4 / 3));
+                max-width: calc(100vw - 288px);
+                min-width: 244px;
+                padding: clamp(6px, 1.8svh, 10px) clamp(6px, 1.8svh, 10px) clamp(12px, 2.8svh, 16px);
+                border-radius: 10px;
+                z-index: 1;
+            }
+
+            .screen-brand {
+                left: clamp(12px, 2vw, 18px);
+                bottom: 3px;
+                font-size: clamp(10px, 3svh, 14px);
+            }
+
+            .controls {
+                position: absolute;
+                inset: 0;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                display: block;
+                pointer-events: none;
+            }
+
+            .shoulder-row {
+                position: absolute;
+                left: max(10px, env(safe-area-inset-left));
+                right: max(10px, env(safe-area-inset-right));
+                top: max(6px, env(safe-area-inset-top));
+                height: clamp(30px, 9svh, 40px);
+                z-index: 3;
+            }
+
+            .shoulder {
+                width: clamp(86px, 17vw, 142px);
+                height: clamp(30px, 9svh, 40px);
+                border-width: 2px;
+                border-radius: 14px;
+                font-size: clamp(16px, 4svh, 22px);
+                pointer-events: auto;
+            }
+
+            .main-controls {
+                position: absolute;
+                inset: 0;
+                display: grid;
+                grid-template-columns: clamp(120px, 22vw, 176px) minmax(244px, 1fr) clamp(120px, 22vw, 176px);
+                align-items: center;
+                justify-content: stretch;
+                gap: 0;
+                padding:
+                    max(44px, calc(env(safe-area-inset-top) + 36px))
+                    max(10px, env(safe-area-inset-right))
+                    max(54px, calc(env(safe-area-inset-bottom) + 48px))
+                    max(10px, env(safe-area-inset-left));
+                z-index: 2;
+            }
+
+            .dpad-wrap {
+                grid-column: 1;
+                width: clamp(104px, min(19vw, 32svh), 148px);
+                justify-self: center;
+            }
+
+            .face-buttons {
+                grid-column: 3;
+                width: clamp(112px, min(20vw, 34svh), 150px);
+                aspect-ratio: 1;
+                justify-self: center;
+            }
+
+            .face-action {
+                width: clamp(44px, min(9vw, 15svh), 60px);
+                border-width: 3px;
+                font-size: clamp(13px, 3.8svh, 18px);
+            }
+
+            .face-action span {
+                bottom: -20px;
+            }
+
+            .system-row {
+                position: absolute;
+                left: 50%;
+                bottom: max(6px, env(safe-area-inset-bottom));
+                transform: translateX(-50%);
+                width: min(252px, 46vw);
+                margin: 0;
+                padding: 0;
+                z-index: 3;
+                pointer-events: auto;
+            }
+
+            .system-control {
+                min-width: 50px;
+                gap: 3px;
+                font-size: 9px;
+            }
+
+            .pill-button {
+                width: clamp(42px, 12svh, 50px);
+                height: clamp(24px, 6.4svh, 29px);
+                border-width: 2px;
+            }
+
+            .menu-button {
+                width: clamp(42px, 11svh, 50px);
+                height: clamp(42px, 11svh, 50px);
+                border-width: 3px;
+                font-size: clamp(17px, 4.8svh, 22px);
+                pointer-events: auto;
+            }
+        }
     </style>
 </head>
 <body>
