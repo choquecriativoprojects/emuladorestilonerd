@@ -79,6 +79,25 @@
             pointer-events: auto;
         }
 
+        .emulator-shell.show-native-menu {
+            overflow: visible;
+            z-index: 2147483000;
+        }
+
+        .emulator-shell.show-native-menu::before {
+            position: fixed;
+            z-index: 2147482998;
+        }
+
+        .emulator-shell.show-native-menu .screen-frame,
+        .emulator-shell.show-native-menu #game {
+            overflow: visible;
+        }
+
+        .emulator-shell.show-native-menu .screen-frame {
+            z-index: 2147482999;
+        }
+
         .screen-frame {
             width: 100%;
             padding: clamp(14px, 3.5vw, 26px) clamp(14px, 3.5vw, 26px) clamp(22px, 4.7vw, 30px);
@@ -141,7 +160,7 @@
             opacity: 1 !important;
             transform: translate(-50%, -50%) !important;
             pointer-events: auto !important;
-            z-index: 60 !important;
+            z-index: 2147483001 !important;
             overflow-y: auto !important;
             flex-direction: column !important;
             flex-wrap: nowrap !important;
@@ -765,6 +784,11 @@
             var buttonPressCounts = new WeakMap();
             var usingPointerTouch = false;
 
+            function shouldHandlePointerEvent(event) {
+                if (!event || event.pointerType !== 'touch') return true;
+                return Math.max(event.width || 0, event.height || 0) > 1;
+            }
+
             function emulatorReady() {
                 return window.EJS_emulator && window.EJS_emulator.gameManager && window.EJS_emulator.gameManager.simulateInput;
             }
@@ -827,30 +851,22 @@
                 toButtonList(buttons).forEach(stopButton);
             }
 
-            function mergeButtonLists(currentButtons, newButtons) {
-                var merged = toButtonList(currentButtons).slice();
-                toButtonList(newButtons).forEach(function(button) {
-                    if (merged.indexOf(button) === -1 && merged.length < 2) {
-                        merged.push(button);
-                    }
-                });
-                return merged;
-            }
-
             function getContactButtons(button) {
                 return button ? [button] : [];
             }
 
             function getMovingContactButtons(currentButtons, event) {
                 var firstButton = toButtonList(currentButtons)[0];
-                var group = firstButton && firstButton.closest ? firstButton.closest('.face-buttons') : null;
                 var x = event && event.clientX;
                 var y = event && event.clientY;
+                var target = (typeof x === 'number' && typeof y === 'number') ? document.elementFromPoint(x, y) : null;
+                var group = firstButton && firstButton.closest ? firstButton.closest('.face-buttons') : null;
+                group = group || (target && target.closest ? target.closest('.face-buttons') : null);
                 if (!group || typeof x !== 'number' || typeof y !== 'number') return [];
 
                 var measuredWidth = event && event.width ? event.width : 0;
                 var measuredHeight = event && event.height ? event.height : 0;
-                var contactPadding = Math.min(18, Math.max(6, Math.max(measuredWidth, measuredHeight) * 0.35));
+                var contactPadding = Math.min(34, Math.max(8, Math.max(measuredWidth, measuredHeight) * 0.58));
                 var buttons = Array.prototype.slice.call(group.querySelectorAll('[data-input]'));
 
                 return buttons.map(function(item) {
@@ -867,19 +883,26 @@
                     return item.active;
                 }).sort(function(a, b) {
                     return a.distance - b.distance;
-                }).map(function(item) {
+                }).slice(0, 2).map(function(item) {
                     return item.button;
                 });
             }
 
-            function addMovedButtons(activeList, event) {
-                var nextButtons = mergeButtonLists(activeList, getMovingContactButtons(activeList, event));
-                nextButtons.forEach(function(button) {
-                    if (activeList.indexOf(button) === -1) {
+            function syncActiveButtons(currentButtons, nextButtons) {
+                var current = toButtonList(currentButtons);
+                var next = toButtonList(nextButtons).slice(0, 2);
+
+                current.forEach(function(button) {
+                    if (next.indexOf(button) === -1) {
+                        stopButton(button);
+                    }
+                });
+                next.forEach(function(button) {
+                    if (current.indexOf(button) === -1) {
                         startButton(button);
                     }
                 });
-                return nextButtons;
+                return next;
             }
 
             function press(button, event) {
@@ -917,7 +940,16 @@
 
             function movePointer(event) {
                 if (!event || event.pointerId === undefined || !activePointers[event.pointerId]) return;
-                activePointers[event.pointerId] = addMovedButtons(activePointers[event.pointerId], event);
+                activePointers[event.pointerId] = syncActiveButtons(
+                    activePointers[event.pointerId],
+                    getMovingContactButtons(activePointers[event.pointerId], event)
+                );
+            }
+
+            function releaseAllPointers() {
+                Object.keys(activePointers).forEach(function(pointerId) {
+                    release(activePointers[pointerId], { pointerId: pointerId });
+                });
             }
 
             function getTouchButtons(touch) {
@@ -949,16 +981,10 @@
                     return;
                 }
                 var previousButtons = activeTouches[touch.identifier];
-                var nextButtons = mergeButtonLists(
+                activeTouches[touch.identifier] = syncActiveButtons(
                     previousButtons,
                     getMovingTouchButtons(previousButtons, touch)
                 );
-                nextButtons.forEach(function(button) {
-                    if (previousButtons.indexOf(button) === -1) {
-                        startButton(button);
-                    }
-                });
-                activeTouches[touch.identifier] = nextButtons;
             }
 
             function releaseTouch(touch) {
@@ -966,6 +992,22 @@
                 if (!buttons) return;
                 delete activeTouches[touch.identifier];
                 stopButtons(buttons);
+            }
+
+            function releaseAllTouches() {
+                Object.keys(activeTouches).forEach(function(identifier) {
+                    var buttons = activeTouches[identifier];
+                    delete activeTouches[identifier];
+                    stopButtons(buttons);
+                });
+            }
+
+            function releaseChangedTouches(event) {
+                if (event.changedTouches && event.changedTouches.length) {
+                    Array.prototype.forEach.call(event.changedTouches, releaseTouch);
+                    return;
+                }
+                releaseAllTouches();
             }
 
             function closeMenu() {
@@ -1176,50 +1218,66 @@
 
             document.querySelectorAll('[data-input]').forEach(function(button) {
                 button.addEventListener('pointerdown', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     event.preventDefault();
                     press(button, event);
                 });
 
                 button.addEventListener('pointermove', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     event.preventDefault();
                     movePointer(event);
                 });
 
                 button.addEventListener('pointerup', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     event.preventDefault();
                     release(button, event);
                 });
 
                 button.addEventListener('pointercancel', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     event.preventDefault();
                     release(button, event);
                 });
 
                 button.addEventListener('lostpointercapture', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     release(button, event);
                 });
             });
 
             document.querySelectorAll('.face-buttons').forEach(function(group) {
                 group.addEventListener('pointerdown', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     if (event.target && event.target.closest && event.target.closest('[data-input]')) return;
                     event.preventDefault();
                     press(null, event);
                 });
 
                 group.addEventListener('pointerup', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     event.preventDefault();
                     release(null, event);
                 });
 
                 group.addEventListener('pointercancel', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     event.preventDefault();
                     release(null, event);
                 });
 
                 group.addEventListener('lostpointercapture', function(event) {
+                    if (!shouldHandlePointerEvent(event)) return;
                     release(null, event);
                 });
+            });
+
+            document.querySelector('.controls').addEventListener('pointermove', function(event) {
+                if (!shouldHandlePointerEvent(event)) return;
+                if (!activePointers[event.pointerId]) return;
+                event.preventDefault();
+                movePointer(event);
             });
 
             document.querySelector('.controls').addEventListener('touchstart', function(event) {
@@ -1235,15 +1293,21 @@
             }, { passive: false });
 
             document.querySelector('.controls').addEventListener('touchend', function(event) {
-                if (usingPointerTouch) return;
+                if (usingPointerTouch) {
+                    releaseAllPointers();
+                    return;
+                }
                 event.preventDefault();
-                Array.prototype.forEach.call(event.changedTouches, releaseTouch);
+                releaseChangedTouches(event);
             }, { passive: false });
 
             document.querySelector('.controls').addEventListener('touchcancel', function(event) {
-                if (usingPointerTouch) return;
+                if (usingPointerTouch) {
+                    releaseAllPointers();
+                    return;
+                }
                 event.preventDefault();
-                Array.prototype.forEach.call(event.changedTouches, releaseTouch);
+                releaseChangedTouches(event);
             }, { passive: false });
 
             document.querySelector('[data-menu]').addEventListener('click', function(event) {
@@ -1258,6 +1322,7 @@
             });
 
             window.addEventListener('pointerup', function(event) {
+                if (!shouldHandlePointerEvent(event)) return;
                 release(activePointers[event.pointerId], event);
             });
 
