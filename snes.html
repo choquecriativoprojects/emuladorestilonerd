@@ -413,6 +413,7 @@
             top: 50%;
             transform: translate(-50%, -50%);
             line-height: 1;
+            pointer-events: none;
         }
 
         .face-action.a {
@@ -690,37 +691,41 @@
                 grid-column: 1;
                 width: clamp(146px, min(24vw, 42svh), 178px);
                 justify-self: center;
+                pointer-events: auto;
             }
 
             .face-buttons {
                 grid-column: 3;
-                --face-size: clamp(58px, min(9vw, 16svh), 66px);
+                --face-size: clamp(56px, min(8.5vw, 15.5svh), 62px);
+                --face-inset: 6px;
                 width: clamp(190px, min(26vw, 52svh), 222px);
                 justify-self: end;
+                pointer-events: auto;
             }
 
             .face-action {
                 border-width: 3px;
                 font-size: clamp(22px, 5.8svh, 30px);
+                pointer-events: auto;
             }
 
             .face-action.a {
-                right: 0;
+                right: var(--face-inset);
                 top: calc(50% - (var(--face-size) / 2));
             }
 
             .face-action.b {
                 left: calc(50% - (var(--face-size) / 2));
-                bottom: 0;
+                bottom: var(--face-inset);
             }
 
             .face-action.x {
                 left: calc(50% - (var(--face-size) / 2));
-                top: 0;
+                top: var(--face-inset);
             }
 
             .face-action.y {
-                left: 0;
+                left: var(--face-inset);
                 top: calc(50% - (var(--face-size) / 2));
             }
 
@@ -746,12 +751,12 @@
             }
 
             .system-control:first-child {
-                left: max(24px, calc(env(safe-area-inset-left) + 24px));
+                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) - 75px);
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
             .system-control:last-child {
-                left: max(106px, calc(env(safe-area-inset-left) + 106px));
+                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) + 7px);
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
@@ -765,6 +770,10 @@
                 width: clamp(54px, 14svh, 62px);
                 height: clamp(54px, 14svh, 62px);
                 border-width: 2px;
+            }
+
+            .dpad-hit {
+                pointer-events: auto;
             }
         }
     </style>

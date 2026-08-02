@@ -581,6 +581,7 @@
                 grid-column: 1;
                 width: clamp(146px, min(24vw, 42svh), 178px);
                 justify-self: center;
+                pointer-events: auto;
             }
 
             .face-buttons {
@@ -588,16 +589,19 @@
                 width: clamp(152px, min(24vw, 44svh), 190px);
                 aspect-ratio: 1;
                 justify-self: center;
+                pointer-events: auto;
             }
 
             .face-action {
                 width: clamp(58px, min(11vw, 18svh), 76px);
                 border-width: 3px;
                 font-size: clamp(16px, 4.8svh, 22px);
+                pointer-events: auto;
             }
 
             .face-action span {
                 bottom: -24px;
+                pointer-events: none;
             }
 
             .system-row {
@@ -621,12 +625,12 @@
             }
 
             .system-control:first-child {
-                left: max(18px, calc(env(safe-area-inset-left) + 18px));
+                left: max(0px, calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) - 100px));
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
             .system-control:last-child {
-                left: max(124px, calc(env(safe-area-inset-left) + 124px));
+                left: calc(env(safe-area-inset-left) + 10px + (clamp(174px, 27vw, 212px) / 2) + 6px);
                 bottom: max(7px, env(safe-area-inset-bottom));
             }
 
@@ -644,6 +648,10 @@
                 height: clamp(84px, 22svh, 100px);
                 border-width: 3px;
                 font-size: clamp(28px, 8svh, 36px);
+                pointer-events: auto;
+            }
+
+            .dpad-hit {
                 pointer-events: auto;
             }
         }
